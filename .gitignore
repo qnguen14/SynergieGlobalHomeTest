@@ -1,0 +1,12 @@
+BE/BrightPathLessonManager/.idea/
+BE/BrightPathLessonManager/BPLM.Domain/bin
+BE/BrightPathLessonManager/BPLM.Domain/obj
+BE/BrightPathLessonManager/BPLM.API/bin
+BE/BrightPathLessonManager/BPLM.API/obj
+BE/BrightPathLessonManager/BPLM.Repository/bin
+BE/BrightPathLessonManager/BPLM.Repository/obj
+BE/BrightPathLessonManager/BPLM.Service/bin
+BE/BrightPathLessonManager/BPLM.Service/obj
+FE/node_modules/
+FE/dist/
+BE/BrightPathLessonManager/BPLM.API/appsettings.json
