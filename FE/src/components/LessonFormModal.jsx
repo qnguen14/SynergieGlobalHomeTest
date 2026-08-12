@@ -197,19 +197,23 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
               </select>
             </div>
 
-            {/* Room */}
+            {/* Room Select */}
             <div>
               <label className="block text-xs font-extrabold text-slate-700 mb-1 flex items-center">
                 <DoorOpen className="w-3.5 h-3.5 mr-1 text-amber-600" /> Room
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. R1, R2"
+              <select
                 value={formData.room}
                 onChange={(e) => setFormData({ ...formData, room: e.target.value })}
                 className="w-full bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 transition-all"
-              />
+              >
+                <option value="R1">Room 1 (R1)</option>
+                <option value="R2">Room 2 (R2)</option>
+                <option value="R3">Room 3 (R3)</option>
+                <option value="R4">Room 4 (R4)</option>
+                <option value="R5">Room 5 (R5)</option>
+                <option value="R6">Room 6 (R6)</option>
+              </select>
             </div>
           </div>
 

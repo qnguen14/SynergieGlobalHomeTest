@@ -41,6 +41,8 @@ public class LessonService : ILessonService
 
     public async Task<Lesson> CreateLessonAsync(CreateLessonRequest request)
     {
+        await ValidateRoomConstraintsAsync(null, request.Room, request.TutorID, request.Date, request.StartTime, request.DurationMin);
+
         int currentCount = (await _lessonRepository.GetAllAsync())
             .Count(l => l.TutorID == request.TutorID && l.Date == request.Date && l.Status != LessonStatus.Cancelled);
 
@@ -70,6 +72,8 @@ public class LessonService : ILessonService
     {
         var existingLesson = await _lessonRepository.GetByIdAsync(lessonId);
         if (existingLesson == null) return null;
+
+        await ValidateRoomConstraintsAsync(lessonId, request.Room, request.TutorID, request.Date, request.StartTime, request.DurationMin);
 
         int currentCount = (await _lessonRepository.GetAllAsync())
             .Count(l => l.LessonID != lessonId && l.TutorID == request.TutorID && l.Date == request.Date && l.Status != LessonStatus.Cancelled);
@@ -185,5 +189,31 @@ public class LessonService : ILessonService
         var end2 = start2.AddMinutes(duration2);
 
         return start1 < end2 && start2 < end1;
+    }
+
+    private async Task ValidateRoomConstraintsAsync(string? excludeLessonId, string room, string tutorId, DateOnly date, TimeOnly startTime, string durationMin)
+    {
+        var allLessons = await _lessonRepository.GetAllAsync();
+        var activeLessonsOnDate = allLessons
+            .Where(l => l.LessonID != excludeLessonId && l.Date == date && l.Status != LessonStatus.Cancelled)
+            .ToList();
+
+        foreach (var other in activeLessonsOnDate)
+        {
+            if (IsTimeOverlapping(startTime, durationMin, other.StartTime, other.DurationMin))
+            {
+                // Constraint 1: A room holds one tutor at a time
+                if (other.Room.Equals(room, StringComparison.OrdinalIgnoreCase) && !other.TutorID.Equals(tutorId, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Room '{room}' is already occupied by another tutor ({other.TutorID}) at this time.");
+                }
+
+                // Constraint 2: A tutor can only be in one room at a time
+                if (other.TutorID.Equals(tutorId, StringComparison.OrdinalIgnoreCase) && !other.Room.Equals(room, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Tutor '{tutorId}' is already teaching in another room ({other.Room}) at this time.");
+                }
+            }
+        }
     }
 }

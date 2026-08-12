@@ -113,8 +113,47 @@ export default function App() {
     });
   };
 
+  // Check room hold and tutor location constraints
+  const checkRoomHoldConflict = (formData, currentLessonId) => {
+    const parseMins = (timeStr) => {
+      if (!timeStr) return 0;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const startMins = parseMins(formData.startTime);
+    const duration = parseInt(formData.durationMin || '60', 10);
+    const endMins = startMins + duration;
+
+    for (const other of lessons) {
+      if (currentLessonId && other.lessonID === currentLessonId) continue;
+      if (other.date !== formData.date) continue;
+      if (other.status === 2 || other.status === 'Cancelled') continue;
+
+      const oStartMins = parseMins(other.startTime);
+      const oDuration = parseInt(other.durationMin || '60', 10);
+      const oEndMins = oStartMins + oDuration;
+      const isOverlap = startMins < oEndMins && oStartMins < endMins;
+
+      if (isOverlap) {
+        if (other.room?.toUpperCase() === formData.room?.toUpperCase() && other.tutorID !== formData.tutorID) {
+          return `Room ${formData.room} is already booked by another tutor (${other.tutorID}) at this time.`;
+        }
+        if (other.tutorID === formData.tutorID && other.room?.toUpperCase() !== formData.room?.toUpperCase()) {
+          return `Tutor ${formData.tutorID} is already teaching in another room (${other.room}) at this time.`;
+        }
+      }
+    }
+    return null;
+  };
+
   // Submit Create / Edit Form
   const handleFormSubmit = async (formData) => {
+    const roomError = checkRoomHoldConflict(formData, editingLesson?.lessonID);
+    if (roomError) {
+      showToast(roomError, 'error');
+      return;
+    }
+
     if (editingLesson && !formData.isExam) {
       const updatedMock = { ...editingLesson, ...formData };
       if (hasTwoStudentsBooked(updatedMock, lessons)) {
