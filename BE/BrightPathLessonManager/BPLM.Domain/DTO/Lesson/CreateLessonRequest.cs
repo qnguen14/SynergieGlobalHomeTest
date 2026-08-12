@@ -9,5 +9,6 @@ public class CreateLessonRequest
     public string TutorID { get; set; } = string.Empty;
     public string Room { get; set; } = string.Empty;
     public bool IsExam { get; set; } = false;
+    public bool ConfirmOverbook { get; set; } = false;
     public string? Notes { get; set; }
 }

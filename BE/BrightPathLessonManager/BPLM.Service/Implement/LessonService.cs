@@ -41,6 +41,14 @@ public class LessonService : ILessonService
 
     public async Task<Lesson> CreateLessonAsync(CreateLessonRequest request)
     {
+        int currentCount = (await _lessonRepository.GetAllAsync())
+            .Count(l => l.TutorID == request.TutorID && l.Date == request.Date && l.Status != LessonStatus.Cancelled);
+
+        if (currentCount >= 6 && !request.ConfirmOverbook)
+        {
+            throw new InvalidOperationException($"Tutor '{request.TutorID}' already has {currentCount} active bookings on {request.Date}. Confirmation is required to exceed 6 bookings per day.");
+        }
+
         var lesson = new Lesson
         {
             LessonID = $"LES-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
@@ -62,6 +70,14 @@ public class LessonService : ILessonService
     {
         var existingLesson = await _lessonRepository.GetByIdAsync(lessonId);
         if (existingLesson == null) return null;
+
+        int currentCount = (await _lessonRepository.GetAllAsync())
+            .Count(l => l.LessonID != lessonId && l.TutorID == request.TutorID && l.Date == request.Date && l.Status != LessonStatus.Cancelled);
+
+        if (currentCount >= 6 && !request.ConfirmOverbook)
+        {
+            throw new InvalidOperationException($"Tutor '{request.TutorID}' already has {currentCount} active bookings on {request.Date}. Confirmation is required to exceed 6 bookings per day.");
+        }
 
         if (!request.IsExam && await WouldHaveTwoStudentsBookedAsync(lessonId, request))
         {

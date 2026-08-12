@@ -77,8 +77,15 @@ public class LessonController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var createdLesson = await _lessonService.CreateLessonAsync(request);
-        return CreatedAtAction(nameof(GetLessonById), new { id = createdLesson.LessonID }, createdLesson);
+        try
+        {
+            var createdLesson = await _lessonService.CreateLessonAsync(request);
+            return CreatedAtAction(nameof(GetLessonById), new { id = createdLesson.LessonID }, createdLesson);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>

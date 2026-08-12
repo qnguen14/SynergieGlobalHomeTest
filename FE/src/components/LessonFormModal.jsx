@@ -15,7 +15,10 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
     notes: '',
   });
 
+  const [showOverbookConfirm, setShowOverbookConfirm] = useState(false);
+
   useEffect(() => {
+    setShowOverbookConfirm(false);
     if (initialData) {
       setFormData({
         date: initialData.date || new Date().toISOString().split('T')[0],
@@ -72,9 +75,27 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
 
   const hasTwoStudents = isMultiStudentString || hasOverlappingBooking;
 
+  // Count tutor's existing active bookings on the selected date
+  const tutorBookingCount = allLessons.filter((l) => {
+    if (initialData && l.lessonID === initialData.lessonID) return false;
+    return l.tutorID === formData.tutorID && l.date === formData.date && l.status !== 2 && l.status !== 'Cancelled';
+  }).length;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    if (tutorBookingCount >= 6 && !showOverbookConfirm) {
+      setShowOverbookConfirm(true);
+      return;
+    }
+
+    onSubmit({ ...formData, confirmOverbook: true });
+    setShowOverbookConfirm(false);
+  };
+
+  const handleConfirmOverbook = () => {
+    onSubmit({ ...formData, confirmOverbook: true });
+    setShowOverbookConfirm(false);
   };
 
   return (
@@ -95,6 +116,40 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Overbook Confirmation Banner */}
+          {showOverbookConfirm && (
+            <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl animate-shake">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-amber-950">Tutor Daily Limit Confirmation</h4>
+                  <p className="text-xs text-amber-900 font-semibold leading-relaxed">
+                    Tutor <strong className="font-black text-slate-950">{formData.tutorID}</strong> already has{' '}
+                    <strong className="font-black text-slate-950">{tutorBookingCount}</strong> active booking(s) on{' '}
+                    <strong className="font-black text-slate-950">{formData.date}</strong>. Adding this booking will exceed the 6 bookings/day policy.
+                  </p>
+                  <p className="text-xs font-extrabold text-amber-950 pt-1">Do you wish to proceed with this booking?</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowOverbookConfirm(false)}
+                  className="px-3.5 py-1.5 text-xs font-extrabold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmOverbook}
+                  className="px-4 py-1.5 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-500 border border-amber-500/40 rounded-xl shadow-xs transition-all"
+                >
+                  Confirm & Save
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             {/* Date */}
             <div>
