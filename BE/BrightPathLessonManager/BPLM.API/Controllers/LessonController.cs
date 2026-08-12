@@ -98,9 +98,16 @@ public class LessonController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var updatedLesson = await _lessonService.UpdateLessonAsync(id, request);
-        if (updatedLesson == null) return NotFound(new { message = $"Lesson with ID '{id}' not found." });
-        return Ok(updatedLesson);
+        try
+        {
+            var updatedLesson = await _lessonService.UpdateLessonAsync(id, request);
+            if (updatedLesson == null) return NotFound(new { message = $"Lesson with ID '{id}' not found." });
+            return Ok(updatedLesson);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -133,9 +140,16 @@ public class LessonController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ToggleExam(string id)
     {
-        var toggledLesson = await _lessonService.ToggleExamAsync(id);
-        if (toggledLesson == null) return NotFound(new { message = $"Lesson with ID '{id}' not found." });
-        return Ok(toggledLesson);
+        try
+        {
+            var toggledLesson = await _lessonService.ToggleExamAsync(id);
+            if (toggledLesson == null) return NotFound(new { message = $"Lesson with ID '{id}' not found." });
+            return Ok(toggledLesson);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>

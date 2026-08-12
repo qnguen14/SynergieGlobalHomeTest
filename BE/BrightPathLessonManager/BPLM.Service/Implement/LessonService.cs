@@ -63,6 +63,11 @@ public class LessonService : ILessonService
         var existingLesson = await _lessonRepository.GetByIdAsync(lessonId);
         if (existingLesson == null) return null;
 
+        if (!request.IsExam && await WouldHaveTwoStudentsBookedAsync(lessonId, request))
+        {
+            throw new InvalidOperationException("Cannot set IsExam to false when two students are booked at the same time.");
+        }
+
         existingLesson.Date = request.Date;
         existingLesson.StartTime = request.StartTime;
         existingLesson.DurationMin = request.DurationMin;
@@ -100,7 +105,13 @@ public class LessonService : ILessonService
         var existingLesson = await _lessonRepository.GetByIdAsync(lessonId);
         if (existingLesson == null) return null;
 
-        existingLesson.IsExam = !existingLesson.IsExam;
+        bool targetIsExam = !existingLesson.IsExam;
+        if (!targetIsExam && await HasTwoStudentsBookedAsync(existingLesson))
+        {
+            throw new InvalidOperationException("Cannot remove Exam status when two students are booked at the same time.");
+        }
+
+        existingLesson.IsExam = targetIsExam;
 
         return await _lessonRepository.UpdateAsync(existingLesson);
     }
@@ -108,5 +119,55 @@ public class LessonService : ILessonService
     public async Task<bool> DeleteLessonAsync(string lessonId)
     {
         return await _lessonRepository.DeleteAsync(lessonId);
+    }
+
+    private async Task<bool> HasTwoStudentsBookedAsync(Lesson lesson)
+    {
+        if (HasMultipleStudentsInString(lesson.Student))
+        {
+            return true;
+        }
+
+        var allLessons = await _lessonRepository.GetAllAsync();
+        return allLessons.Any(other =>
+            other.LessonID != lesson.LessonID &&
+            other.TutorID == lesson.TutorID &&
+            other.Date == lesson.Date &&
+            other.Status != LessonStatus.Cancelled &&
+            IsTimeOverlapping(lesson.StartTime, lesson.DurationMin, other.StartTime, other.DurationMin));
+    }
+
+    private async Task<bool> WouldHaveTwoStudentsBookedAsync(string lessonId, UpdateLessonRequest request)
+    {
+        if (HasMultipleStudentsInString(request.Student))
+        {
+            return true;
+        }
+
+        var allLessons = await _lessonRepository.GetAllAsync();
+        return allLessons.Any(other =>
+            other.LessonID != lessonId &&
+            other.TutorID == request.TutorID &&
+            other.Date == request.Date &&
+            other.Status != LessonStatus.Cancelled &&
+            IsTimeOverlapping(request.StartTime, request.DurationMin, other.StartTime, other.DurationMin));
+    }
+
+    private static bool HasMultipleStudentsInString(string? studentField)
+    {
+        if (string.IsNullOrWhiteSpace(studentField)) return false;
+        var names = studentField.Split(new[] { ',', '&', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        return names.Length > 1;
+    }
+
+    private static bool IsTimeOverlapping(TimeOnly start1, string duration1Str, TimeOnly start2, string duration2Str)
+    {
+        if (!int.TryParse(duration1Str, out int duration1)) duration1 = 60;
+        if (!int.TryParse(duration2Str, out int duration2)) duration2 = 60;
+
+        var end1 = start1.AddMinutes(duration1);
+        var end2 = start2.AddMinutes(duration2);
+
+        return start1 < end2 && start2 < end1;
     }
 }

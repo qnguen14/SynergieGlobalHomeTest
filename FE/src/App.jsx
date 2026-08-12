@@ -76,8 +76,53 @@ export default function App() {
     setIsFormModalOpen(true);
   };
 
+  // Helper to check if two students are booked at the same time for a lesson
+  const hasTwoStudentsBooked = (targetLesson, allLessons) => {
+    if (!targetLesson) return false;
+
+    // 1. Check multi-student names in student string
+    if (targetLesson.student) {
+      const studentCount = targetLesson.student
+        .split(/[,&/]/)
+        .filter((s) => s.trim().length > 0).length;
+      if (studentCount > 1) return true;
+    }
+
+    // 2. Check overlapping active sessions for the same tutor on the same date
+    const parseMins = (timeStr) => {
+      if (!timeStr) return 0;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const startMins = parseMins(targetLesson.startTime);
+    const duration = parseInt(targetLesson.durationMin || '60', 10);
+    const endMins = startMins + duration;
+
+    return allLessons.some((other) => {
+      if (other.lessonID && targetLesson.lessonID && other.lessonID === targetLesson.lessonID) return false;
+      if (other.tutorID !== targetLesson.tutorID) return false;
+      if (other.date !== targetLesson.date) return false;
+      if (other.status === 2 || other.status === 'Cancelled') return false;
+
+      const oStartMins = parseMins(other.startTime);
+      const oDuration = parseInt(other.durationMin || '60', 10);
+      const oEndMins = oStartMins + oDuration;
+
+      return startMins < oEndMins && oStartMins < endMins;
+    });
+  };
+
   // Submit Create / Edit Form
   const handleFormSubmit = async (formData) => {
+    if (editingLesson && !formData.isExam) {
+      const updatedMock = { ...editingLesson, ...formData };
+      if (hasTwoStudentsBooked(updatedMock, lessons)) {
+        showToast('Cannot set Exam status to false: This lesson has two students booked at the same time.', 'error');
+        return;
+      }
+    }
+
     try {
       if (editingLesson) {
         await api.updateLesson(editingLesson.lessonID, formData);
@@ -114,6 +159,12 @@ export default function App() {
 
   // Toggle Exam
   const handleToggleExam = async (id) => {
+    const target = lessons.find((l) => l.lessonID === id);
+    if (target && target.isExam && hasTwoStudentsBooked(target, lessons)) {
+      showToast('Cannot remove Exam status: This lesson has two students booked at the same time.', 'error');
+      return;
+    }
+
     try {
       const updated = await api.toggleExam(id);
       showToast(`Exam status toggled to ${updated.isExam ? 'Exam' : 'Regular'}`);
@@ -277,6 +328,7 @@ export default function App() {
         onClose={() => setIsFormModalOpen(false)}
         onSubmit={handleFormSubmit}
         initialData={editingLesson}
+        allLessons={lessons}
       />
 
       {/* Cancel Reason Modal */}

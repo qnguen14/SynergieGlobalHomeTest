@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Clock, User, DoorOpen, Award, Calendar, FileText } from 'lucide-react';
+import { X, Save, Clock, User, DoorOpen, Award, Calendar, FileText, AlertTriangle } from 'lucide-react';
 
-export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData = null }) {
+export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData = null, allLessons = [] }) {
   const isEdit = Boolean(initialData);
 
   const [formData, setFormData] = useState({
@@ -42,6 +42,35 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
+
+  // Check if two students are booked for current modal state
+  const isMultiStudentString = formData.student
+    ? formData.student.split(/[,&/]/).filter((s) => s.trim().length > 0).length > 1
+    : false;
+
+  const parseMins = (timeStr) => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const startMins = parseMins(formData.startTime);
+  const duration = parseInt(formData.durationMin || '60', 10);
+  const endMins = startMins + duration;
+
+  const hasOverlappingBooking = allLessons.some((other) => {
+    if (initialData && other.lessonID === initialData.lessonID) return false;
+    if (other.tutorID !== formData.tutorID) return false;
+    if (other.date !== formData.date) return false;
+    if (other.status === 2 || other.status === 'Cancelled') return false;
+
+    const oStartMins = parseMins(other.startTime);
+    const oDuration = parseInt(other.durationMin || '60', 10);
+    const oEndMins = oStartMins + oDuration;
+
+    return startMins < oEndMins && oStartMins < endMins;
+  });
+
+  const hasTwoStudents = isMultiStudentString || hasOverlappingBooking;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -159,17 +188,25 @@ export default function LessonFormModal({ isOpen, onClose, onSubmit, initialData
           </div>
 
           {/* Is Exam Toggle */}
-          <div className="flex items-center space-x-2 pt-1">
-            <input
-              type="checkbox"
-              id="isExam"
-              checked={formData.isExam}
-              onChange={(e) => setFormData({ ...formData, isExam: e.target.checked })}
-              className="w-4 h-4 rounded-lg text-amber-500 focus:ring-amber-400 bg-white border-slate-300 cursor-pointer"
-            />
-            <label htmlFor="isExam" className="text-sm font-extrabold text-slate-800 cursor-pointer flex items-center">
-              <Award className="w-4 h-4 mr-1.5 text-amber-600" /> Mark as Exam Session
-            </label>
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isExam"
+                checked={formData.isExam}
+                onChange={(e) => setFormData({ ...formData, isExam: e.target.checked })}
+                className="w-4 h-4 rounded-lg text-amber-500 focus:ring-amber-400 bg-white border-slate-300 cursor-pointer"
+              />
+              <label htmlFor="isExam" className="text-sm font-extrabold text-slate-800 cursor-pointer flex items-center">
+                <Award className="w-4 h-4 mr-1.5 text-amber-600" /> Mark as Exam Session
+              </label>
+            </div>
+            {hasTwoStudents && !formData.isExam && (
+              <div className="flex items-start space-x-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300/80 p-2.5 rounded-xl">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Two students are booked at this time. Exam status is required and cannot be turned off.</span>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
